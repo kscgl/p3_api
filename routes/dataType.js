@@ -21,6 +21,23 @@ const ShardsPreference = require('../middleware/ShardsPreference')
 
 router.use(httpParams)
 
+// Extract http_authorization from POST body before auth middleware runs
+// This allows form-based downloads to pass authorization securely via POST body
+// instead of URL query parameters (which can be logged/cached)
+router.use(bodyParser.urlencoded({ extended: false, limit: '1mb' }))
+router.use(function (req, res, next) {
+  if (req.method === 'POST' && req.body && req.body.http_authorization) {
+    // Only set header if not already present
+    if (!req.headers['authorization']) {
+      req.headers['authorization'] = req.body.http_authorization
+      debug('Set authorization header from POST body http_authorization')
+    }
+    // Remove from body to prevent it from being processed further
+    delete req.body.http_authorization
+  }
+  next()
+})
+
 router.use(authMiddleware)
 
 router.use(PublicDataTypes)
