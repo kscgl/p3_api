@@ -62,7 +62,11 @@ module.exports = {
         if (!fields) {
           fields = Object.keys(res.results.response.docs[0])
         }
-        res.write(fields.join(',') + '\n')
+        if (header) {
+          res.write(header.join(',') + '\n')
+        } else {
+          res.write(fields.join(',') + '\n')
+        }
         res.results.response.docs.forEach((data) => {
           const row = fields.map((field) => {
             if (data[field] instanceof Array) {

@@ -60,7 +60,11 @@ module.exports = {
         if (!fields) {
           fields = Object.keys(res.results.response.docs[0])
         }
-        res.write(fields.join('\t') + '\n')
+        if (header) {
+          res.write(header.join('\t') + '\n')
+        } else {
+          res.write(fields.join('\t') + '\n')
+        }
         res.results.response.docs.forEach(function (o) {
           var row = fields.map(function (field) {
             if (o[field] instanceof Array) {
