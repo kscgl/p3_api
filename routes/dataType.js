@@ -21,6 +21,49 @@ const ShardsPreference = require('../middleware/ShardsPreference')
 
 router.use(httpParams)
 
+// Extract http_authorization from POST body before auth middleware runs
+// This allows form-based downloads to pass authorization securely via POST body
+// instead of URL query parameters (which can be logged/cached)
+// We use bodyParser.raw to read the raw body, extract auth, then restore the body
+router.use(function (req, res, next) {
+  // Only process POST requests with form-urlencoded content type
+  var ctype = req.get('content-type')
+  if (req.method !== 'POST' || !ctype || !ctype.includes('application/x-www-form-urlencoded')) {
+    return next()
+  }
+
+  // Collect body data
+  var chunks = []
+  req.on('data', function (chunk) {
+    chunks.push(chunk)
+  })
+  req.on('end', function () {
+    var bodyStr = Buffer.concat(chunks).toString()
+    var parsed = querystring.parse(bodyStr)
+
+    // Extract http_authorization if present
+    if (parsed.http_authorization && !req.headers['authorization']) {
+      req.headers['authorization'] = parsed.http_authorization
+      debug('Set authorization header from POST body http_authorization')
+      // Remove from parsed body
+      delete parsed.http_authorization
+      // Reconstruct body without http_authorization
+      bodyStr = querystring.stringify(parsed)
+    }
+
+    // Store raw body string for later middleware to parse
+    // We need to make the body available again for downstream body parsers
+    req._authBodyParsed = true
+    req._rawBody = bodyStr
+    req.body = bodyStr
+
+    next()
+  })
+  req.on('error', function (err) {
+    next(err)
+  })
+})
+
 router.use(authMiddleware)
 
 router.use(PublicDataTypes)
@@ -122,12 +165,22 @@ router.post('*', [
     next('route')
   },
 
-  bodyParser.text({ type: 'application/x-www-form-urlencoded', limit: '30mb' }),
+  // Skip bodyParser.text if we already parsed the body for auth extraction
+  function (req, res, next) {
+    if (req._authBodyParsed) {
+      // Body was already parsed for auth extraction, skip to processing
+      req._body = true
+      next()
+    } else {
+      // Let bodyParser.text handle it
+      bodyParser.text({ type: 'application/x-www-form-urlencoded', limit: '30mb' })(req, res, next)
+    }
+  },
   function (req, res, next) {
     // debug('x-www-form-url-encoded check', body)
     req.call_method = 'query'
     req.call_collection = req.params.dataType
-    var body = querystring.parse(req.body)
+    var body = typeof req.body === 'string' ? querystring.parse(req.body) : req.body
     debug('BODY: ', body)
     if (body.rql) {
       req.call_params = [decodeURIComponent(body.rql)]

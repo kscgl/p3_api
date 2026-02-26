@@ -2,7 +2,7 @@ const debug = require('debug')('p3api-server:http-params')
 const URL = require('url')
 
 // Whitelist of allowed headers that can be set via query parameters
-const ALLOWED_HEADERS = ['accept', 'range', 'content-type']
+const ALLOWED_HEADERS = ['accept', 'range', 'content-type', 'download']
 
 // Sanitize header values to prevent XSS
 function sanitizeHeaderValue(value) {
@@ -86,7 +86,7 @@ module.exports = function (req, res, next) {
       req._parsedUrl.path = req._parsedUrl.pathname + ((req._parsedUrl.search.charAt(0) === '?') ? req._parsedUrl.search : ('?' + req._parsedUrl.search))
       req._parsedUrl.href = req._parsedUrl.path
       req.url = URL.format(req._parsedUrl)
-      req._parsedUrl.query = '?' + req._parsedUrl.search
+      req._parsedUrl.query = req._parsedUrl.search
       debug('set req.query to ', req._parsedUrl.search)
     }
   } else {
