@@ -2,7 +2,7 @@ const debug = require('debug')('p3api-server:http-params')
 const URL = require('url')
 
 // Whitelist of allowed headers that can be set via query parameters
-const ALLOWED_HEADERS = ['accept', 'range', 'content-type']
+const ALLOWED_HEADERS = ['accept', 'range', 'content-type', 'download']
 
 // Sanitize header values to prevent XSS
 function sanitizeHeaderValue(value) {
